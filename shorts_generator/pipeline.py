@@ -34,15 +34,36 @@ def _run_local(
             "Whisper produced no segments. The video may have no detectable speech."
         )
 
-    highlights_result = get_highlights(transcript, num_clips=num_clips, llm_fn=call_local_llm)
-    all_highlights: List[Dict] = highlights_result.get("highlights", [])
-    if not all_highlights:
-        raise RuntimeError("Highlight generator returned zero clips.")
+    import json
+    import os
+    from pathlib import Path
+    from .config import LOCAL_OUTPUT_DIR
+
+    highlights_cache = os.path.join(LOCAL_OUTPUT_DIR, Path(source_path).stem + "_highlights.json")
+    if os.path.exists(highlights_cache):
+        print(f"[highlights/local] reusing cached highlights: {highlights_cache}", flush=True)
+        with open(highlights_cache, "r", encoding="utf-8") as f:
+            all_highlights = json.load(f)
+    else:
+        highlights_result = get_highlights(transcript, num_clips=num_clips, llm_fn=call_local_llm)
+        all_highlights: List[Dict] = highlights_result.get("highlights", [])
+        if not all_highlights:
+            raise RuntimeError("Highlight generator returned zero clips.")
+        try:
+            with open(highlights_cache, "w", encoding="utf-8") as f:
+                json.dump(all_highlights, f, indent=2)
+        except Exception:
+            pass
 
     top = sorted(all_highlights, key=lambda h: int(h.get("score", 0)), reverse=True)[:num_clips]
     print(f"[pipeline/local] cropping {len(top)} of {len(all_highlights)} candidates", flush=True)
 
-    shorts = crop_highlights_local(source_path, top, aspect_ratio=aspect_ratio)
+    shorts = crop_highlights_local(
+        source_path,
+        top,
+        aspect_ratio=aspect_ratio,
+        transcript=transcript,
+    )
 
     return {
         "mode": "local",

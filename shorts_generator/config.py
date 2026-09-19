@@ -1,8 +1,15 @@
 import os
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Ensure virtualenv Scripts directory (where ffmpeg.exe resides) is in PATH
+_scripts_dir = str(Path(sys.executable).parent)
+if _scripts_dir not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = _scripts_dir + os.pathsep + os.environ.get("PATH", "")
 
 MUAPI_API_KEY = os.getenv("MUAPI_API_KEY", "").strip()
 MUAPI_BASE_URL = os.getenv("MUAPI_BASE_URL", "https://api.muapi.ai/api/v1").rstrip("/")

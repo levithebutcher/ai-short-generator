@@ -37,17 +37,29 @@ def call_gemini_llm(prompt: str) -> str:
             "    pip install -r requirements-local.txt"
         ) from e
 
+    import time
     client = genai.Client(api_key=require_gemini_key())
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config={
-            "temperature": 0.2,
-            "response_mime_type": "application/json",
-            "max_output_tokens": 8192,
-        },
-    )
-    return response.text or ""
+    last_err = None
+    for attempt in range(1, 5):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config={
+                    "temperature": 0.2,
+                    "response_mime_type": "application/json",
+                    "max_output_tokens": 8192,
+                },
+            )
+            return response.text or ""
+        except Exception as e:
+            last_err = e
+            if attempt < 4:
+                wait_time = attempt * 3
+                print(f"[llm/gemini] transient error ({e}), retrying in {wait_time}s...", flush=True)
+                time.sleep(wait_time)
+            else:
+                raise last_err
 
 
 def call_local_llm(prompt: str) -> str:
