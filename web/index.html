@@ -336,12 +336,55 @@
     let activeJobId = null;
     let eventSource = null;
 
-    // Initialize Lucide icons
+    // Initialize Lucide icons and restore active job if refreshed
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       loadConfig();
       loadLibrary();
+      checkActiveJob();
     });
+
+    async function checkActiveJob() {
+      try {
+        const res = await fetch("/api/active-job");
+        if (res.ok) {
+          const job = await res.json();
+          if (!job) return;
+
+          activeJobId = job.id;
+          if (job.url) {
+            document.getElementById("video-url").value = job.url;
+          }
+
+          document.getElementById("progress-card").classList.remove("hidden");
+          updateProgressBar(job.percent || 0, job.message || "");
+          updateStepper(job.step);
+
+          if (job.logs && job.logs.length) {
+            const consoleEl = document.getElementById("log-console");
+            consoleEl.innerHTML = "";
+            job.logs.forEach(l => appendLog(l));
+          }
+
+          if (job.status === "running" || job.status === "queued") {
+            document.getElementById("submit-btn").disabled = true;
+            document.getElementById("submit-text").textContent = "Processing...";
+            document.getElementById("status-text").textContent = "Generating Shorts...";
+            connectSSE(job.id);
+          } else if (job.status === "completed") {
+            updateProgressBar(100, "All shorts completed!");
+            updateStepper("completed");
+            renderResults(job.result?.shorts || []);
+            finishJobUI();
+          } else if (job.status === "failed") {
+            updateProgressBar(job.percent || 50, "Failed: " + (job.error || "Unknown error"));
+            finishJobUI();
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check active job:", err);
+      }
+    }
 
     async function loadConfig() {
       try {

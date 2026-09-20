@@ -169,6 +169,23 @@ async def get_config():
     }
 
 
+@app.get("/api/active-job")
+async def get_active_job():
+    """Return the currently running or most recent job for page refresh recovery."""
+    now = time.time()
+    # First check for an actively running or queued job
+    for job_id in reversed(list(jobs.keys())):
+        job = jobs[job_id]
+        if job.get("status") in ("running", "queued"):
+            return job
+    # Otherwise return the most recent job created within the last 30 minutes
+    for job_id in reversed(list(jobs.keys())):
+        job = jobs[job_id]
+        if now - job.get("created_at", 0) < 1800:
+            return job
+    return None
+
+
 @app.post("/api/generate")
 async def start_generation(req: GenerateRequest):
     """Start a background generation job."""
