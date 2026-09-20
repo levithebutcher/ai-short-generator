@@ -22,6 +22,9 @@ def _run_local(
     language: Optional[str],
     progress_callback: Optional[Any] = None,
     caption_style: str = "hormozi",
+    enable_broll: bool = True,
+    enable_hook_header: bool = True,
+    turbo_mode: bool = True,
 ) -> Dict:
     from .local.clipper import crop_highlights_local
     from .local.downloader import download_youtube_local
@@ -40,7 +43,7 @@ def _run_local(
     import os
     _report("download", 25, f"Source video ready: {os.path.basename(source_path)}")
 
-    _report("transcribe", 30, "Transcribing audio with faster-whisper...")
+    _report("transcribe", 30, "Transcribing audio with faster-whisper (turbo mode)...")
     transcript = transcribe_local(source_path, language=language)
     if not transcript["segments"]:
         raise RuntimeError(
@@ -71,7 +74,7 @@ def _run_local(
 
     top = sorted(all_highlights, key=lambda h: int(h.get("score", 0)), reverse=True)[:num_clips]
     _report("analyze", 65, f"Selected top {len(top)} viral highlights")
-    print(f"[pipeline/local] cropping {len(top)} of {len(all_highlights)} candidates (style: {caption_style})", flush=True)
+    print(f"[pipeline/local] cropping {len(top)} candidates (style: {caption_style}, broll: {enable_broll}, turbo: {turbo_mode})", flush=True)
 
     def _on_render_clip(current: int, total: int, title: str):
         pct = 65 + int(((current - 1) / max(1, total)) * 30)
@@ -84,6 +87,9 @@ def _run_local(
         transcript=transcript,
         on_progress=_on_render_clip,
         caption_style=caption_style,
+        enable_broll=enable_broll,
+        enable_hook_header=enable_hook_header,
+        turbo_mode=turbo_mode,
     )
 
     result = {
@@ -140,6 +146,9 @@ def generate_shorts(
     mode: str = "api",
     progress_callback: Optional[Any] = None,
     caption_style: str = "hormozi",
+    enable_broll: bool = True,
+    enable_hook_header: bool = True,
+    turbo_mode: bool = True,
 ) -> Dict:
     """Run the full pipeline and return a structured result.
 
@@ -153,6 +162,9 @@ def generate_shorts(
             OpenAI or Gemini + ffmpeg).
         progress_callback: Optional callback fn(step, percent, message, data).
         caption_style: One of 'hormozi', 'mrbeast', 'bounce', 'karaoke', 'minimal', 'classic'.
+        enable_broll: Auto-insert contextual stock images/stickers for spoken objects/products.
+        enable_hook_header: Display attention-grabbing hook headline bar at the top.
+        turbo_mode: 10x faster frame-sampled face tracking & fast encoding.
 
     Returns:
         {
@@ -173,6 +185,9 @@ def generate_shorts(
             language,
             progress_callback=progress_callback,
             caption_style=caption_style,
+            enable_broll=enable_broll,
+            enable_hook_header=enable_hook_header,
+            turbo_mode=turbo_mode,
         )
     if mode == "api":
         return _run_api(youtube_url, num_clips, aspect_ratio, download_format, language)

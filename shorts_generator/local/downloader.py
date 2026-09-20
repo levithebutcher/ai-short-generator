@@ -118,6 +118,9 @@ def download_youtube_local(video_url: str, fmt: str = "720", out_dir: Optional[s
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
+        "concurrent_fragment_downloads": 4,
+        "retries": 5,
+        "fragment_retries": 5,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

@@ -170,6 +170,7 @@ def create_ass_subtitles(
     aspect_ratio: str = "9:16",
     caption_style: str = "hormozi",
     chunk_size: Optional[int] = None,
+    hook_title: Optional[str] = None,
 ) -> bool:
     """Extract words for a subclip and create a stylized ASS animated subtitle file.
 
@@ -181,6 +182,7 @@ def create_ass_subtitles(
         aspect_ratio: Video aspect ratio ('9:16', '1:1', etc.).
         caption_style: One of 'hormozi', 'mrbeast', 'bounce', 'karaoke', 'minimal', 'classic'.
         chunk_size: Optional override for number of words displayed per subtitle line.
+        hook_title: Optional headline banner to display at the top of the video.
 
     Returns:
         True if subtitles were generated and written, False if no words found.
@@ -281,6 +283,12 @@ def create_ass_subtitles(
     is_uppercase = style_cfg["uppercase"]
     is_bounce = style_cfg["bounce"]
 
+    hook_style_block = ""
+    if hook_title and hook_title.strip():
+        hook_font_size = 46 if aspect_ratio == "9:16" else 36
+        hook_margin_v = 90 if aspect_ratio == "9:16" else 45
+        hook_style_block = f"Style: HookHeader,{font_name},{hook_font_size},&H0000FFFF,&H000000FF,&H00000000,&HB0000000,-1,0,0,0,100,100,0,0,3,4,0,8,40,40,{hook_margin_v},1\n"
+
     ass_content = f"""[Script Info]
 Title: AI Shorts Animated Captions ({style_cfg['name']})
 ScriptType: v4.00+
@@ -292,10 +300,15 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,{font_name},{font_size},{primary_color},&H000000FF,{outline_color},{back_color},-1,0,0,0,100,100,0,0,{border_style},{outline},{shadow},2,50,50,{margin_v},1
-
+{hook_style_block}
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+
+    if hook_title and hook_title.strip():
+        clean_hook = hook_title.strip().upper().replace("{", "").replace("}", "")
+        hook_end_s = min(clip_dur, 8.0)
+        ass_content += f"Dialogue: 1,0:00:00.00,{_format_ass_time(hook_end_s)},HookHeader,,0,0,0,,{clean_hook}\n"
 
     events: List[Dict[str, str]] = []
 

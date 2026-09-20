@@ -66,6 +66,9 @@ class GenerateRequest(BaseModel):
     download_format: str = "720"
     language: Optional[str] = None
     caption_style: str = "hormozi"
+    enable_broll: bool = True
+    enable_hook_header: bool = True
+    turbo_mode: bool = True
 
 
 def _broadcast_event(job_id: str, event_data: Dict[str, Any]) -> None:
@@ -111,7 +114,7 @@ def _run_job_worker(job_id: str, req: GenerateRequest, loop: asyncio.AbstractEve
         _safe_broadcast(payload)
 
     try:
-        progress_callback("start", 5, f"Starting generation for: {req.url} (style: {req.caption_style})")
+        progress_callback("start", 5, f"Starting generation for: {req.url} (style: {req.caption_style}, b-roll: {req.enable_broll}, turbo: {req.turbo_mode})")
         result = generate_shorts(
             req.url,
             num_clips=req.num_clips,
@@ -121,6 +124,9 @@ def _run_job_worker(job_id: str, req: GenerateRequest, loop: asyncio.AbstractEve
             mode="local",
             progress_callback=progress_callback,
             caption_style=req.caption_style,
+            enable_broll=req.enable_broll,
+            enable_hook_header=req.enable_hook_header,
+            turbo_mode=req.turbo_mode,
         )
         job["status"] = "completed"
         job["percent"] = 100

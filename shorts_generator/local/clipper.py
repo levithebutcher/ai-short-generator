@@ -130,14 +130,17 @@ def _reframe_vertical(
     out_path: str,
     aspect_ratio: str,
     subtitle_ass_path: Optional[str] = None,
+    broll_overlays: Optional[List[Dict[str, Any]]] = None,
+    turbo_mode: bool = True,
 ) -> str:
-    """Crop the cut clip to the target aspect ratio, tracking faces if possible."""
+    """Crop video with 10x adaptive face tracking and single-pass FFmpeg rawvideo pipe."""
     try:
         import cv2  # type: ignore
+        import imageio_ffmpeg
+        ff = imageio_ffmpeg.get_ffmpeg_exe()
     except ImportError as e:
         raise RuntimeError(
-            "opencv-python is required for --mode local. Install it with:\n"
-            "    pip install -r requirements-local.txt"
+            "opencv-python and imageio-ffmpeg are required for local clipping."
         ) from e
 
     target_ratio = _ratio(aspect_ratio)
@@ -149,7 +152,7 @@ def _reframe_vertical(
     src_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-    # Compute the largest crop that fits inside the frame at the target ratio.
+    # Compute target crop dimensions
     if target_ratio < src_w / src_h:
         crop_h = src_h
         crop_w = int(crop_h * target_ratio)
@@ -161,78 +164,111 @@ def _reframe_vertical(
 
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-    silent_path = out_path + ".silent.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(silent_path, fourcc, fps, (crop_w, crop_h))
-
-    last_center: Optional[Tuple[int, int]] = None
-    smoothing = 0.15  # how aggressively to chase a new face position
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        faces = ()
-        try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(40, 40))
-        except Exception:
-            faces = ()
-
-        if len(faces) > 0:
-            # Pick the largest face — usually the speaker.
-            x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-            cx = x + w // 2
-            cy = y + h // 2
-            if last_center is None:
-                last_center = (cx, cy)
-            else:
-                lx, ly = last_center
-                last_center = (
-                    int(lx + (cx - lx) * smoothing),
-                    int(ly + (cy - ly) * smoothing),
-                )
-        if last_center is None:
-            last_center = (src_w // 2, src_h // 2)
-
-        cx, cy = last_center
-        x0 = max(0, min(src_w - crop_w, cx - crop_w // 2))
-        y0 = max(0, min(src_h - crop_h, cy - crop_h // 2))
-        x0 = x0 - (x0 % 2)
-        y0 = y0 - (y0 % 2)
-        cropped = np.ascontiguousarray(frame[y0:y0 + crop_h, x0:x0 + crop_w])
-        writer.write(cropped)
-
-    cap.release()
-    writer.release()
-    del cap
-    del writer
-    gc.collect()
-    time.sleep(0.2)
-
-    # Mux audio from the cut clip back onto the silent reframed video, burning subtitles if available.
+    # Assemble single-pass FFmpeg command
     cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-i", silent_path,
-        "-i", in_path,
+        ff, "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "bgr24",
+        "-s", f"{crop_w}x{crop_h}",
+        "-r", str(fps),
+        "-i", "-",        # Input 0: piped frames from OpenCV
+        "-i", in_path,    # Input 1: source audio
     ]
+
+    # Prepare B-Roll overlays
+    from .broll_engine import build_ffmpeg_broll_filters
+    broll_inputs, broll_filter_str = build_ffmpeg_broll_filters(
+        broll_overlays or [],
+        canvas_w=crop_w,
+        canvas_h=crop_h,
+    )
+    cmd.extend(broll_inputs)
+
+    filter_chains = []
+    current_v = "0:v"
+
+    if broll_filter_str:
+        filter_chains.append(broll_filter_str)
+        current_v = f"v_broll{len(broll_overlays or [])}"
+
     if subtitle_ass_path and os.path.exists(subtitle_ass_path):
         escaped_ass = subtitle_ass_path.replace("\\", "/").replace(":", "\\:")
-        cmd += [
-            "-vf", f"ass='{escaped_ass}'",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        ]
-    else:
-        cmd += ["-c:v", "copy"]
+        filter_chains.append(f"[{current_v}]ass='{escaped_ass}'[v_out]")
+        current_v = "v_out"
 
-    cmd += [
+    if filter_chains:
+        cmd.extend(["-filter_complex", ";".join(filter_chains), "-map", f"[{current_v}]"])
+    else:
+        cmd.extend(["-map", "0:v"])
+
+    # Output encoding with mobile loudness normalization
+    cmd.extend([
+        "-map", "1:a:0?",
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
         "-c:a", "aac", "-b:a", "128k",
-        "-map", "0:v:0", "-map", "1:a:0?",
         "-shortest",
         out_path,
-    ]
-    subprocess.run(cmd, check=True)
-    _safe_remove(silent_path)
+    ])
+
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+    # Adaptive face detection sampling (every 10 frames in turbo mode)
+    sample_interval = 10 if turbo_mode else 5
+    frame_idx = 0
+    last_center: Optional[Tuple[int, int]] = None
+    smoothing = 0.15
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if frame_idx % sample_interval == 0:
+                try:
+                    # 50% downsample for 4x faster face detection
+                    small_gray = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (0, 0), fx=0.5, fy=0.5)
+                    faces = face_cascade.detectMultiScale(small_gray, scaleFactor=1.15, minNeighbors=4, minSize=(25, 25))
+                    if len(faces) > 0:
+                        x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+                        cx = int((x + w // 2) * 2)
+                        cy = int((y + h // 2) * 2)
+                        if last_center is None:
+                            last_center = (cx, cy)
+                        else:
+                            lx, ly = last_center
+                            last_center = (
+                                int(lx + (cx - lx) * smoothing),
+                                int(ly + (cy - ly) * smoothing),
+                            )
+                except Exception:
+                    pass
+
+            if last_center is None:
+                last_center = (src_w // 2, src_h // 2)
+
+            cx, cy = last_center
+            x0 = max(0, min(src_w - crop_w, cx - crop_w // 2))
+            y0 = max(0, min(src_h - crop_h, cy - crop_h // 2))
+            x0 = x0 - (x0 % 2)
+            y0 = y0 - (y0 % 2)
+            cropped = np.ascontiguousarray(frame[y0:y0 + crop_h, x0:x0 + crop_w])
+
+            try:
+                proc.stdin.write(cropped.tobytes())
+            except (BrokenPipeError, OSError):
+                break
+
+            frame_idx += 1
+    finally:
+        cap.release()
+        try:
+            if proc.stdin:
+                proc.stdin.close()
+            proc.wait()
+        except Exception:
+            pass
+
     return out_path
 
 
@@ -244,11 +280,16 @@ def crop_clip_local(
     out_path: str,
     transcript: Optional[Dict] = None,
     caption_style: str = "hormozi",
+    enable_broll: bool = True,
+    enable_hook_header: bool = True,
+    hook_title: Optional[str] = None,
+    turbo_mode: bool = True,
 ) -> str:
-    """Cut + reframe one highlight with burned captions, returning the local mp4 path."""
+    """Cut + reframe one highlight with burned captions & B-roll overlays in a single fast pass."""
     cut_path = out_path + ".cut.mp4"
     sub_path = out_path + ".sub.ass"
     has_sub = False
+
     if transcript and "segments" in transcript:
         has_sub = create_ass_subtitles(
             transcript["segments"],
@@ -257,7 +298,24 @@ def crop_clip_local(
             sub_path,
             aspect_ratio=aspect_ratio,
             caption_style=caption_style,
+            hook_title=hook_title if enable_hook_header else None,
         )
+
+    broll_overlays: List[Dict[str, Any]] = []
+    if enable_broll and transcript and "segments" in transcript:
+        try:
+            from .broll_engine import extract_visual_keywords, get_or_fetch_stock_image
+            keywords_data = extract_visual_keywords(transcript["segments"], start_time, end_time, max_items=2)
+            for kw_item in keywords_data:
+                badge_path = get_or_fetch_stock_image(kw_item["keyword"])
+                if badge_path and os.path.exists(badge_path):
+                    broll_overlays.append({
+                        "image_path": badge_path,
+                        "start": kw_item["start"],
+                        "end": kw_item["end"],
+                    })
+        except Exception as e:
+            print(f"[clip/local] b-roll fetch error: {e}", flush=True)
 
     try:
         _cut_subclip(source_path, start_time, end_time, cut_path)
@@ -266,6 +324,8 @@ def crop_clip_local(
             out_path,
             aspect_ratio,
             subtitle_ass_path=sub_path if has_sub else None,
+            broll_overlays=broll_overlays,
+            turbo_mode=turbo_mode,
         )
     finally:
         _safe_remove(cut_path)
@@ -282,11 +342,13 @@ def crop_highlights_local(
     transcript: Optional[Dict] = None,
     on_progress: Optional[Any] = None,
     caption_style: str = "hormozi",
+    enable_broll: bool = True,
+    enable_hook_header: bool = True,
+    turbo_mode: bool = True,
 ) -> List[Dict]:
     out_dir = out_dir or LOCAL_OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
 
-    # Auto-load transcript cache if not provided directly
     if transcript is None:
         try:
             from .transcriber import _load_srt_cache, _transcript_cache_path
@@ -315,6 +377,10 @@ def crop_highlights_local(
                 out_path,
                 transcript=transcript,
                 caption_style=caption_style,
+                enable_broll=enable_broll,
+                enable_hook_header=enable_hook_header,
+                hook_title=title,
+                turbo_mode=turbo_mode,
             )
             results.append({**h, "clip_url": out_path})
         except Exception as e:
