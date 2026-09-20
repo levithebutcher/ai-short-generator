@@ -9,6 +9,8 @@ opencv-python>=4.8.0
 # torch is only needed if you want CUDA Whisper. CPU works without it.
 # torch>=2.0
 
-# Local web dashboard
+# Local web dashboard & media processing
 fastapi>=0.110.0
 uvicorn>=0.28.0
+pillow>=10.0.0
+imageio-ffmpeg>=0.4.9

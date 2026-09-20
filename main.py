@@ -33,6 +33,15 @@ def main() -> int:
     parser.add_argument("--aspect-ratio", default="9:16", help="Output aspect ratio (default: 9:16)")
     parser.add_argument("--format", default="720", help="Source download resolution: 360 / 480 / 720 / 1080 (default: 720)")
     parser.add_argument("--language", default=None, help="Force Whisper language code, e.g. 'en' (default: auto-detect)")
+    parser.add_argument(
+        "--caption-style",
+        choices=["hormozi", "bounce", "beast", "karaoke", "box"],
+        default="bounce",
+        help="Subtitle style: bounce (active zoom), hormozi (yellow), beast (cyan), karaoke (progressive), box (pill) (default: bounce)",
+    )
+    parser.add_argument("--broll", action=argparse.BooleanOptionalAction, default=True, help="Enable contextual stock image popups (default: True)")
+    parser.add_argument("--hook-header", action=argparse.BooleanOptionalAction, default=True, help="Pin viral hook title banner at top (default: True)")
+    parser.add_argument("--turbo", action=argparse.BooleanOptionalAction, default=True, help="Turbo 10x single-pass render engine (default: True)")
     parser.add_argument("--output-json", default=None, help="Write the full result JSON to this path")
     args = parser.parse_args()
 
@@ -52,6 +61,10 @@ def main() -> int:
             download_format=args.format,
             language=args.language,
             mode=args.mode,
+            caption_style=args.caption_style,
+            enable_broll=args.broll,
+            enable_hook_header=args.hook_header,
+            turbo_mode=args.turbo,
         )
     except Exception as e:
         print(f"\nFAILED: {e}", file=sys.stderr)

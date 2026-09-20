@@ -1,51 +1,56 @@
-# AI YouTube Shorts Generator
+# AI YouTube Shorts Generator ⚡ (Turbo 10x Edition)
 
-**The open-source alternative to Opus Clip, Vidyo.ai, Klap, SubMagic, 2short.ai, and other AI clipping tools.** Drop in any long-form YouTube video and get back ranked, viral-ready 9:16 shorts — for free, with no per-clip credits, no watermarks, and full control over the highlight algorithm.
+**The open-source alternative to Opus Clip, Vidyo.ai, Klap, SubMagic, and 2short.ai.** Drop in any long-form YouTube video or local MP4 and get back ranked, viral-ready 9:16 vertical shorts — for free, with no per-clip credits, no watermarks, full control over the virality algorithm, and an interactive web dashboard.
 
-Built for creators, agencies, and developers who don't want to pay $20–$300/month or be capped on minutes processed. Uses LLM highlight detection (OpenAI or Google Gemini) and Whisper transcription to extract the most viral-worthy moments and auto-crop them vertically with CapCut-style karaoke captions for TikTok, Reels, and Shorts.
+Built for creators, agencies, and developers who don't want to pay $20–$300/month or be capped on minutes processed. Uses Gemini / OpenAI for highlight detection, Whisper for transcription, OpenCV adaptive face tracking, and FFmpeg for single-pass 10x vertical rendering with viral CapCut/SubMagic captions and contextual B-roll stock overlays.
 
 ![longshorts](https://github.com/user-attachments/assets/3f5d1abf-bf3b-475f-8abf-5e253003453a)
 
-## Why Use This Instead of Opus Clip / Vidyo.ai / Klap?
+---
+
+## ⚡ Why Use This Instead of Opus Clip / Vidyo.ai / Klap?
 
 | | This repo | Opus Clip / Vidyo.ai / Klap / SubMagic |
 |---|---|---|
-| **Price** | Free + open source | $20–$300/month subscriptions |
-| **Per-clip credits** | None — process unlimited videos | Monthly minute caps, overage fees |
-| **Watermarks** | Never | On free tiers |
-| **Highlight algorithm** | Fully editable virality framework | Black box |
-| **Output format** | Any aspect ratio, any resolution | Locked presets |
-| **Batch processing** | `xargs` an entire URL list | Manual upload one-by-one |
-| **JSON / API output** | Built-in (`--output-json`) | Limited or paid tier only |
-| **Self-hostable** | Yes — runs on your machine or server | SaaS only, your videos sit on their servers |
-| **White-label / embeddable** | Yes — MIT licensed, import as Python lib | No |
-
-## Features
-
-- **🎬 YouTube In, Vertical Out**: Hand it any YouTube URL — get back N viral-ready 9:16 mp4s
-- **✨ CapCut-Style Karaoke Subtitles**: Word-by-word active yellow karaoke highlighting, bold typography, safe vertical positioning for YouTube Shorts & TikTok
-- **🔀 Two Modes — API (fast) or Local (offline)**: Default `--mode api` uses cloud APIs for download/transcription/cropping; `--mode local` runs entirely on your machine with `yt-dlp`, `faster-whisper`, and `ffmpeg`/`opencv`, with OpenAI or Gemini for highlight ranking
-- **🤖 Virality-Aware Highlight Selection**: Clips ranked on hooks, emotional peaks, opinion bombs, revelation moments, conflict, quotable lines, story peaks, and practical value — not just generic "interesting"
-- **📈 Score + Hook + Reason for Every Clip**: Each highlight comes with a viral score, an opening hook line, and a one-sentence explanation of why it works
-- **🎤 Whisper Transcription**: Cloud or local (`faster-whisper`, CPU or CUDA with word-level timestamps) — same downstream output shape
-- **🧩 Long-Video Aware**: Videos over 30 minutes are auto-chunked with overlap so nothing gets missed
-- **♻️ Smart Dedupe**: Overlapping highlights are collapsed by score so you never get two near-duplicate clips
-- **🎯 Smart Vertical Crop**: Local mode runs OpenCV face tracking with motion smoothing
-- **📱 Any Aspect Ratio**: 9:16 for TikTok/Reels/Shorts, 1:1 for square, anything else by flag
-- **🧰 CLI + Python Library**: Use it from the shell or import `generate_shorts(...)` into your own pipeline
-- **📦 JSON Output**: `--output-json` dumps the full result (transcript + every candidate highlight + final clip URLs/paths) for downstream automation
+| **Price** | **100% Free + Open Source** | $20–$300/month subscriptions |
+| **Per-clip credits** | **None** — process unlimited videos | Monthly minute caps, overage fees |
+| **Watermarks** | **Never** | On free tiers |
+| **Highlight algorithm** | **Customizable Virality Framework** | Black box |
+| **Render Speed** | **Turbo 10x Single-Pass Pipe** (under 10s per short) | Multi-minute cloud queues |
+| **Contextual B-Roll** | **Automated Stock Image Badges (Zero-Key)** | Premium add-on |
+| **Subtitle Styles** | **5 Viral Styles** (Bounce, Hormozi, Beast, Box, Karaoke) | Locked presets |
+| **Web Dashboard** | **Interactive Dark UI + Realtime Progress** | Proprietary SaaS |
+| **Self-Hostable** | **Yes** — runs locally on your laptop or server | SaaS only |
+| **License** | **MIT** (commercial & personal use) | Proprietary |
 
 ---
 
-## Installation
+## 🚀 Key Features
+
+- **⚡ Turbo 10x Single-Pass Engine**: Completely eliminates slow software double-encoding! Streams raw frames directly from OpenCV into FFmpeg `stdin` (`-f rawvideo -pix_fmt bgr24`) with 10-frame adaptive face detection on downsampled grayscale and EMA smoothing.
+- **🖼️ Contextual AI Stock Image / B-Roll Overlays**: Detects spoken physical objects (e.g. *"crow"*, *"soup"*, *"chicken"*, *"money"*, *"car"*, *"coffee"*), fetches royalty-free stock photos (via Wikimedia Commons zero-key fallback or Pexels API), styles them into viral rounded sticker badges (white border + drop shadow), and displays them with smooth alpha fade at the exact spoken moment.
+- **📌 Viral Hook Header Banner**: Pins a high-retention hook headline at the top center with yellow typography and a dark bounding box to maximize watch time.
+- **✨ 5 Viral Subtitle Caption Styles (SubMagic / CapCut inspired)**:
+  - `bounce`: Word-by-word active zoom pop-in with radiant yellow highlight.
+  - `hormozi`: Bold uppercase yellow word-by-word highlight.
+  - `beast`: Cyan MrBeast-style punchy text with black contrast outline.
+  - `box`: High-contrast black pill highlight box behind the active word.
+  - `karaoke`: Smooth progressive line karaoke highlighting.
+- **🌐 Interactive Web Dashboard**: Launch `python main.py --web` for a modern dark-themed web studio with live stage progress, video preview player, and one-click MP4 downloads.
+- **🔊 Mobile Loudness Normalization & Silence Removal**: Standardizes audio to **EBU R128** (`loudnorm=I=-16:TP=-1.5:LRA=11`) for maximum punch on mobile speakers.
+- **🎯 Intelligent Face-Centered Crop**: Automatically reframes 16:9 widescreen video into 9:16 vertical video while keeping the speaker's face centered.
+- **🤖 Multi-LLM Virality Scoring**: Evaluates transcripts across hook strength, emotional spikes, revelations, controversy, and practical value using **Google Gemini** (Free tier supported!) or **OpenAI**.
+
+---
+
+## 🛠️ Installation
 
 ### Prerequisites
+- **Python 3.10+**
+- **FFmpeg** (installed automatically via `imageio-ffmpeg` or system PATH)
+- **API Key**: `GEMINI_API_KEY` (Free tier recommended!) or `OPENAI_API_KEY`
 
-- Python 3.10+
-- `ffmpeg` on your PATH (automatically handled if installed in virtual environment)
-- An LLM API key: `GEMINI_API_KEY` (Free tier supported!) or `OPENAI_API_KEY`
-
-### Steps
+### Setup
 
 1. **Clone the repository:**
    ```bash
@@ -62,135 +67,151 @@ Built for creators, agencies, and developers who don't want to pay $20–$300/mo
    source .venv/bin/activate
    ```
 
-3. **Install Python dependencies:**
+3. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
-   # For local offline mode (Whisper, OpenCV face tracking, Gemini):
    pip install -r requirements-local.txt
    ```
 
-4. **Set up environment variables:**
+4. **Configure environment variables:**
+   Create a `.env` file in the root folder:
+   ```env
+   # LLM Provider (gemini or openai)
+   LLM_PROVIDER=gemini
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-2.5-flash
 
-   Create a `.env` file in the project root:
-   ```bash
-   # Local mode (--mode local)
-   LLM_PROVIDER=gemini               # gemini or openai
-   GEMINI_API_KEY=your_gemini_key_here
-   GEMINI_MODEL=gemini-2.5-flash    # optional, default gemini-2.5-flash
-
-   # Optional OpenAI configuration
+   # Optional OpenAI settings
    OPENAI_API_KEY=your_openai_key_here
    OPENAI_MODEL=gpt-4o-mini
+
+   # Optional Pexels API Key for HD stock images (defaults to Wikimedia Commons if omitted)
+   PEXELS_API_KEY=your_pexels_key_optional
 
    # Whisper transcription settings
    LOCAL_WHISPER_MODEL=base          # tiny / base / small / medium / large-v3
    LOCAL_WHISPER_DEVICE=auto         # auto / cpu / cuda
-   LOCAL_OUTPUT_DIR=output           # where local mp4s land
+   LOCAL_OUTPUT_DIR=output           # output directory for rendered shorts
    ```
 
-## Usage
+---
 
-### Single video (Local mode — runs offline with Gemini & Whisper)
+## 🖥️ Usage
 
+### 1. Interactive Web Dashboard (Recommended)
+
+Launch the web studio in your browser:
 ```bash
-python main.py "https://www.youtube.com/watch?v=VIDEO_ID" --mode local
+python main.py --web
+```
+Or directly:
+```bash
+python app.py
+```
+Open **http://127.0.0.1:8000** to paste YouTube URLs, toggle Turbo 10x, enable B-roll popups, choose subtitle styles, and watch live progress.
+
+---
+
+### 2. Command-Line Interface (CLI)
+
+#### Basic generation:
+```bash
+python main.py "https://www.youtube.com/watch?v=VIDEO_ID" --num-clips 3
 ```
 
-Local mode writes the rendered shorts with burned CapCut-style karaoke captions to `./output/short_01.mp4`, `short_02.mp4`, …
-
-### With options
-
+#### Full customization (Subtitles, B-Roll, Hook Banner):
 ```bash
 python main.py "https://www.youtube.com/watch?v=VIDEO_ID" \
-    --mode local \
     --num-clips 3 \
+    --caption-style bounce \
+    --broll \
+    --hook-header \
+    --turbo \
     --aspect-ratio 9:16 \
-    --output-json result.json
+    --output-json results.json
 ```
 
-### Local file or path
-
-In `--mode local`, you can pass a local video file path directly and skip YouTube downloading:
-
+#### Process a local video file directly:
 ```bash
-python main.py "input_video.mp4" --mode local
+python main.py "my_podcast.mp4" --num-clips 5 --caption-style hormozi
 ```
 
-The Python API works the same way:
+---
+
+### 3. Python API Integration
+
+Embed the pipeline directly into your applications:
 
 ```python
 from shorts_generator import generate_shorts
 
 result = generate_shorts(
-    "input_video.mp4",
+    youtube_url="https://www.youtube.com/watch?v=VIDEO_ID",
     num_clips=3,
     aspect_ratio="9:16",
     mode="local",
+    caption_style="bounce",     # bounce / hormozi / beast / karaoke / box
+    enable_broll=True,          # contextual stock image overlays
+    enable_hook_header=True,    # pinned viral hook banner
+    turbo_mode=True,            # single-pass high-speed pipe
 )
+
 for short in result["shorts"]:
-    print(short["score"], short["title"], short["clip_url"])
+    print(f"Title: {short['title']} (Score: {short['score']})")
+    print(f"File: {short['clip_url']}")
 ```
 
-### Automatic Caching
+---
 
-- **Transcription caching**: Transcriptions are cached as `.srt` files in `LOCAL_OUTPUT_DIR`. If the cache already exists, Whisper runs are skipped.
-- **Highlights caching**: Highlight detections from Gemini/OpenAI are saved to `LOCAL_OUTPUT_DIR` to save API quota.
-- **Source download caching**: Source videos are cached in `LOCAL_OUTPUT_DIR` as `source_<youtube_id>.mp4`.
+## ⚙️ CLI Options Reference
 
-### Batch processing
+| Flag | Default | Description |
+|---|---|---|
+| `url` | *None* | YouTube URL, local video file path, or `file://` URI |
+| `--web` | `False` | Launch interactive web UI at `http://127.0.0.1:8000` |
+| `--port` | `8000` | Web server port |
+| `--mode` | `local` | `local` (offline Whisper + Gemini + OpenCV + FFmpeg) or `api` |
+| `--num-clips` | `3` | Number of top viral shorts to generate |
+| `--caption-style` | `bounce` | Subtitle style: `bounce`, `hormozi`, `beast`, `karaoke`, `box` |
+| `--broll` / `--no-broll` | `True` | Enable/disable contextual stock image badge overlays |
+| `--hook-header` / `--no-hook-header` | `True` | Enable/disable top-center pinned hook title banner |
+| `--turbo` / `--no-turbo` | `True` | Enable/disable Turbo 10x single-pass fast render engine |
+| `--aspect-ratio` | `9:16` | Aspect ratio: `9:16` (vertical), `1:1` (square), `16:9` |
+| `--format` | `720` | Video download resolution: `360`, `480`, `720`, `1080` |
+| `--language` | *auto* | Force Whisper language code (e.g. `en`, `hi`, `es`, `fr`) |
+| `--output-json` | *None* | Path to export full JSON metadata |
 
-Create a `urls.txt` file with one URL per line, then:
+---
 
-```bash
-xargs -a urls.txt -I{} python main.py "{}" --mode local
-```
-
-### CLI flags
-
-| Flag | Default | Notes |
-|------|---------|-------|
-| `--mode` | `local` | `local` (faster-whisper + Gemini/OpenAI + OpenCV + CapCut subtitles) or `api` |
-| `--num-clips` | `3` | How many shorts to render |
-| `--aspect-ratio` | `9:16` | Any ratio; `9:16` for TikTok/Reels, `1:1` for square |
-| `--format` | `720` | Source download resolution: `360` / `480` / `720` / `1080` |
-| `--language` | auto | Force Whisper language code (e.g. `en`) |
-| `--output-json` | — | Dump the full result (transcript + all candidates) to a file |
-
-## How It Works
-
-1. **Download**: Fetches the source video from YouTube (or reads local video)
-2. **Transcribe**: `faster-whisper` produces a word-level timestamped transcript
-3. **Detect content type**: An LLM classifies the video (podcast, interview, tutorial, vlog, etc.) and density
-4. **Long-video chunking**: Videos > 30 min are split into 20-min overlapping chunks
-5. **Highlight ranking**: Gemini/OpenAI scans the transcript through a virality framework — hook moments, emotional peaks, opinion bombs, revelations, conflict, quotables, story peaks, practical value — and emits ranked candidates with scores 0–100
-6. **Dedupe**: Overlapping candidates are collapsed by score (>50% overlap → keep the higher score)
-7. **Top-N selection**: The top `--num-clips` candidates are selected
-8. **Auto-crop & Subtitle Burn**: Each highlight is reframed vertically with face tracking and burned with word-by-word active yellow karaoke ASS subtitles
-
-## Project Structure
+## 📁 Project Architecture
 
 ```
 ai-short-generator/
-├── main.py                       CLI entry point
-├── requirements.txt              core dependencies
-├── requirements-local.txt        local mode dependencies (faster-whisper, opencv, torch)
-├── .env.example
-└── shorts_generator/
-    ├── config.py                 env / settings (Gemini, OpenAI, Whisper, FFmpeg)
-    ├── highlights.py             LLM virality ranking framework
-    ├── pipeline.py               orchestrator with caching
-    └── local/                    local offline backends
-        ├── downloader.py         yt-dlp download
-        ├── transcriber.py        faster-whisper transcription with word timestamps
-        ├── llm.py                Gemini & OpenAI client selector
-        ├── caption_generator.py  CapCut-style ASS karaoke subtitle generator
-        └── clipper.py            ffmpeg cut + OpenCV face tracking + ASS subtitle burn
+├── app.py                         FastAPI web server & background job runner
+├── main.py                        CLI entry point with full argument controls
+├── requirements.txt               Core dependencies
+├── requirements-local.txt         Local offline dependencies (FastAPI, OpenCV, Whisper, Pillow)
+├── web/
+│   └── index.html                 Single-page dark modern web dashboard
+├── shorts_generator/
+│   ├── config.py                  Environment settings & defaults
+│   ├── highlights.py              LLM virality ranking framework
+│   ├── pipeline.py                End-to-end pipeline orchestrator & cache manager
+│   └── local/
+│       ├── broll_engine.py        AI noun extraction, stock image fetcher, sticker badge formatter
+│       ├── caption_generator.py   5 viral ASS subtitle styles + hook header banner
+│       ├── clipper.py             Turbo 10x single-pass OpenCV rawvideo pipe + face tracking
+│       ├── downloader.py          yt-dlp multi-fragment concurrent video downloader
+│       ├── llm.py                 Gemini and OpenAI multi-provider client
+│       ├── silence_remover.py     Audio silence trimming & EBU R128 loudness normalizer
+│       └── transcriber.py         faster-whisper word-level timestamp transcriber
 ```
 
-## Contributing
+---
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+## 🤝 Contributing
 
-## License
+Pull requests and feature suggestions are very welcome! If you have ideas for new caption animations, B-roll integrations, or transitions, feel free to open an issue or PR.
 
-This project is licensed under the MIT License.
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
