@@ -6,7 +6,7 @@ Two modes:
   * mode="local"            — yt-dlp + faster-whisper + OpenAI or Gemini + ffmpeg/opencv.
                               Self-hosted, LLM_PROVIDER selects OpenAI or Gemini.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .clipper import crop_highlights
 from .downloader import download_youtube
@@ -20,22 +20,35 @@ def _run_local(
     aspect_ratio: str,
     download_format: str,
     language: Optional[str],
+    progress_callback: Optional[Any] = None,
 ) -> Dict:
     from .local.clipper import crop_highlights_local
     from .local.downloader import download_youtube_local
     from .local.llm import call_local_llm
     from .local.transcriber import transcribe_local
 
-    source_path = download_youtube_local(youtube_url, fmt=download_format)
+    def _report(step: str, percent: int, msg: str, data: Optional[Dict] = None):
+        if progress_callback:
+            try:
+                progress_callback(step, percent, msg, data)
+            except Exception:
+                pass
 
+    _report("download", 10, "Fetching source video...")
+    source_path = download_youtube_local(youtube_url, fmt=download_format)
+    import os
+    _report("download", 25, f"Source video ready: {os.path.basename(source_path)}")
+
+    _report("transcribe", 30, "Transcribing audio with faster-whisper...")
     transcript = transcribe_local(source_path, language=language)
     if not transcript["segments"]:
         raise RuntimeError(
             "Whisper produced no segments. The video may have no detectable speech."
         )
+    _report("transcribe", 50, f"Transcription complete ({len(transcript['segments'])} segments)")
 
+    _report("analyze", 55, "Analyzing virality & selecting highlights with AI...")
     import json
-    import os
     from pathlib import Path
     from .config import LOCAL_OUTPUT_DIR
 
@@ -56,22 +69,30 @@ def _run_local(
             pass
 
     top = sorted(all_highlights, key=lambda h: int(h.get("score", 0)), reverse=True)[:num_clips]
+    _report("analyze", 65, f"Selected top {len(top)} viral highlights")
     print(f"[pipeline/local] cropping {len(top)} of {len(all_highlights)} candidates", flush=True)
+
+    def _on_render_clip(current: int, total: int, title: str):
+        pct = 65 + int(((current - 1) / max(1, total)) * 30)
+        _report("render", pct, f"Rendering Short {current}/{total}: {title}")
 
     shorts = crop_highlights_local(
         source_path,
         top,
         aspect_ratio=aspect_ratio,
         transcript=transcript,
+        on_progress=_on_render_clip,
     )
 
-    return {
+    result = {
         "mode": "local",
         "source_video_url": source_path,
         "transcript": transcript,
         "highlights": all_highlights,
         "shorts": shorts,
     }
+    _report("completed", 100, f"Generated {len(shorts)} shorts successfully!", result)
+    return result
 
 
 def _run_api(
@@ -115,6 +136,7 @@ def generate_shorts(
     download_format: str = "720",
     language: Optional[str] = None,
     mode: str = "api",
+    progress_callback: Optional[Any] = None,
 ) -> Dict:
     """Run the full pipeline and return a structured result.
 
@@ -126,6 +148,7 @@ def generate_shorts(
         language: ISO-639-1 to force Whisper language detection.
         mode: "api" (default, MuAPI) or "local" (yt-dlp + faster-whisper +
             OpenAI or Gemini + ffmpeg).
+        progress_callback: Optional callback fn(step, percent, message, data).
 
     Returns:
         {
@@ -138,7 +161,14 @@ def generate_shorts(
     """
     mode = (mode or "api").lower()
     if mode == "local":
-        return _run_local(youtube_url, num_clips, aspect_ratio, download_format, language)
+        return _run_local(
+            youtube_url,
+            num_clips,
+            aspect_ratio,
+            download_format,
+            language,
+            progress_callback=progress_callback,
+        )
     if mode == "api":
         return _run_api(youtube_url, num_clips, aspect_ratio, download_format, language)
     raise ValueError(f"Unknown mode: {mode!r}. Use 'api' or 'local'.")

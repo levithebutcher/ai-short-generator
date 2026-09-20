@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI YouTube Shorts Generator - Local Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            },
+            karaoke: '#fbbf24',
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(124, 58, 237, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.6); }
+    }
+    .active-glow {
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+    /* Custom scrollbar for console */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-600 selection:text-white">
+
+  <!-- Navbar -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="scissors" class="w-5 h-5 text-slate-950 font-black"></i>
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">AI Shorts Generator</span>
+          <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30">Local Offline</span>
+        </div>
+      </div>
+
+      <!-- Navigation & Status -->
+      <div class="flex items-center space-x-4">
+        <div id="status-badge" class="flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="status-text">Engine Ready</span>
+        </div>
+        <a href="https://github.com/levithebutcher/ai-short-generator" target="_blank" class="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition">
+          <i data-lucide="github" class="w-5 h-5"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Hero / Headline -->
+    <div class="text-center max-w-3xl mx-auto pt-2 pb-4">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white sm:leading-tight">
+        Turn Any Long Video Into <span class="bg-gradient-to-r from-brand-500 via-amber-400 to-amber-500 bg-clip-text text-transparent">Viral Shorts</span>
+      </h1>
+      <p class="mt-2 text-slate-400 text-sm sm:text-base">
+        Local Faster-Whisper transcription • Gemini AI highlight detection • OpenCV face-tracking • CapCut-style karaoke ASS subtitles
+      </p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex justify-center border-b border-slate-800">
+      <nav class="flex space-x-8" aria-label="Tabs">
+        <button id="tab-btn-generate" onclick="switchTab('generate')" class="border-b-2 border-brand-500 text-brand-400 pb-3 px-1 text-sm font-semibold flex items-center space-x-2">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Create Shorts</span>
+        </button>
+        <button id="tab-btn-library" onclick="switchTab('library')" class="border-b-2 border-transparent text-slate-400 hover:text-slate-200 pb-3 px-1 text-sm font-semibold flex items-center space-x-2">
+          <i data-lucide="film" class="w-4 h-4"></i>
+          <span>My Library (<span id="library-count">0</span>)</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- TAB 1: GENERATE VIEW -->
+    <div id="tab-generate" class="space-y-8">
+
+      <!-- Generation Form Card -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-60 h-60 bg-brand-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <form id="generate-form" onsubmit="handleGenerate(event)" class="space-y-6">
+          <!-- Video URL Input -->
+          <div>
+            <label for="video-url" class="block text-sm font-medium text-slate-200 mb-2 flex items-center justify-between">
+              <span>YouTube Video URL or Local Video Path</span>
+              <button type="button" onclick="pasteClipboard()" class="text-xs text-brand-400 hover:text-brand-300 flex items-center space-x-1">
+                <i data-lucide="clipboard" class="w-3 h-3"></i>
+                <span>Paste</span>
+              </button>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="link" class="w-5 h-5"></i>
+              </div>
+              <input
+                type="text"
+                id="video-url"
+                required
+                placeholder="https://www.youtube.com/watch?v=... or local file path"
+                class="block w-full pl-11 pr-4 py-3 bg-slate-950/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-sm sm:text-base"
+              >
+            </div>
+          </div>
+
+          <!-- Settings Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <!-- Number of Clips -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Number of Shorts</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button type="button" onclick="setClips(1)" id="btn-clip-1" class="clip-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition">1</button>
+                <button type="button" onclick="setClips(2)" id="btn-clip-2" class="clip-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition">2</button>
+                <button type="button" onclick="setClips(3)" id="btn-clip-3" class="clip-btn py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white border border-brand-500 transition">3</button>
+                <button type="button" onclick="setClips(5)" id="btn-clip-5" class="clip-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition">5</button>
+              </div>
+            </div>
+
+            <!-- Aspect Ratio -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Aspect Ratio</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="setRatio('9:16')" id="btn-ratio-916" class="ratio-btn py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white border border-brand-500 transition flex items-center justify-center space-x-1">
+                  <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                  <span>9:16 (Shorts)</span>
+                </button>
+                <button type="button" onclick="setRatio('1:1')" id="btn-ratio-11" class="ratio-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex items-center justify-center space-x-1">
+                  <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                  <span>1:1 (Square)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- AI Engine Info -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">AI Engine</label>
+              <div class="py-2 px-3 bg-slate-950/60 border border-slate-800 rounded-lg text-xs text-slate-300 flex items-center justify-between">
+                <span class="flex items-center space-x-1.5 font-medium text-emerald-400">
+                  <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                  <span id="cfg-llm">Google Gemini</span>
+                </span>
+                <span class="text-slate-500 font-mono text-[11px]" id="cfg-model">gemini-2.5-flash</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-2">
+            <button
+              type="submit"
+              id="submit-btn"
+              class="w-full py-4 px-6 rounded-xl font-bold text-base bg-gradient-to-r from-brand-600 via-brand-500 to-amber-500 hover:from-brand-500 hover:to-amber-400 text-white shadow-lg shadow-brand-600/30 hover:shadow-brand-500/40 transition transform active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i data-lucide="sparkles" class="w-5 h-5"></i>
+              <span id="submit-text">Generate Viral Shorts</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Real-Time Progress Dashboard (Hidden until generation starts) -->
+      <div id="progress-card" class="hidden bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-xl">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center animate-spin">
+              <i data-lucide="loader-2" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-white">Generating Shorts in Real-Time</h2>
+              <p id="progress-status-msg" class="text-xs text-slate-400">Initializing pipeline...</p>
+            </div>
+          </div>
+          <span id="progress-percentage-badge" class="px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/30 text-brand-300 font-bold font-mono text-sm">
+            0%
+          </span>
+        </div>
+
+        <!-- Visual 5-Stage Stepper -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <!-- Step 1: Download -->
+          <div id="step-download" class="step-card bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition">
+            <div class="step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+              <i data-lucide="download" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">1. Download</span>
+            <span class="step-sub text-[10px] text-slate-500 font-mono">yt-dlp</span>
+          </div>
+
+          <!-- Step 2: Transcribe -->
+          <div id="step-transcribe" class="step-card bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition">
+            <div class="step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+              <i data-lucide="mic" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">2. Transcribe</span>
+            <span class="step-sub text-[10px] text-slate-500 font-mono">faster-whisper</span>
+          </div>
+
+          <!-- Step 3: Analyze -->
+          <div id="step-analyze" class="step-card bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition">
+            <div class="step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+              <i data-lucide="brain" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">3. AI Analysis</span>
+            <span class="step-sub text-[10px] text-slate-500 font-mono">Gemini AI</span>
+          </div>
+
+          <!-- Step 4: Render -->
+          <div id="step-render" class="step-card bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition">
+            <div class="step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+              <i data-lucide="clapperboard" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">4. Crop & Subtitles</span>
+            <span class="step-sub text-[10px] text-slate-500 font-mono">CapCut ASS</span>
+          </div>
+
+          <!-- Step 5: Ready -->
+          <div id="step-completed" class="step-card col-span-2 sm:col-span-1 bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition">
+            <div class="step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">5. Ready</span>
+            <span class="step-sub text-[10px] text-slate-500 font-mono">Completed</span>
+          </div>
+        </div>
+
+        <!-- Animated Progress Bar -->
+        <div class="space-y-1.5">
+          <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div id="progress-bar-fill" class="h-full bg-gradient-to-r from-brand-600 via-amber-400 to-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Collapsible Live Log Terminal -->
+        <div class="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+          <div class="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <div class="flex items-center space-x-2 font-mono">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+              <span class="ml-2">Live Console Stream</span>
+            </div>
+            <button type="button" onclick="clearLogs()" class="hover:text-slate-200 transition">Clear</button>
+          </div>
+          <div id="log-console" class="p-4 h-40 overflow-y-auto font-mono text-xs text-slate-300 space-y-1">
+            <div class="text-slate-500 italic">Waiting for pipeline events...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Results Section -->
+      <div id="results-card" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+            <span>Generated Shorts</span>
+          </h2>
+          <span id="results-count-badge" class="text-xs text-slate-400">3 clips ready</span>
+        </div>
+
+        <div id="results-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Short Cards injected dynamically -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: LIBRARY VIEW -->
+    <div id="tab-library" class="hidden space-y-6">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div>
+          <h2 class="text-xl font-bold text-white">Video Library</h2>
+          <p class="text-xs text-slate-400">All shorts saved locally in <code class="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded font-mono">output/</code></p>
+        </div>
+        <button onclick="loadLibrary()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 flex items-center space-x-1.5 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <div id="library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Cards injected dynamically -->
+      </div>
+      <div id="library-empty" class="hidden text-center py-16 text-slate-500 space-y-2">
+        <i data-lucide="film" class="w-10 h-10 mx-auto opacity-40"></i>
+        <p class="text-sm">No shorts generated yet.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-sm shadow-2xl text-white flex items-center space-x-3 transition-all duration-300 opacity-0 pointer-events-none translate-y-2 z-50">
+    <div id="toast-icon"></div>
+    <span id="toast-msg"></span>
+  </div>
+
+  <script>
+    // State
+    let selectedClips = 3;
+    let selectedRatio = "9:16";
+    let activeJobId = null;
+    let eventSource = null;
+
+    // Initialize Lucide icons
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      loadConfig();
+      loadLibrary();
+    });
+
+    async function loadConfig() {
+      try {
+        const res = await fetch("/api/config");
+        if (res.ok) {
+          const cfg = await res.json();
+          document.getElementById("cfg-llm").textContent = cfg.llm_provider === "openai" ? "OpenAI" : "Google Gemini";
+          document.getElementById("cfg-model").textContent = cfg.llm_provider === "openai" ? cfg.openai_model : cfg.gemini_model;
+        }
+      } catch (err) {
+        console.error("Failed to load config:", err);
+      }
+    }
+
+    function switchTab(tab) {
+      const genTab = document.getElementById("tab-generate");
+      const libTab = document.getElementById("tab-library");
+      const genBtn = document.getElementById("tab-btn-generate");
+      const libBtn = document.getElementById("tab-btn-library");
+
+      if (tab === "generate") {
+        genTab.classList.remove("hidden");
+        libTab.classList.add("hidden");
+        genBtn.className = "border-b-2 border-brand-500 text-brand-400 pb-3 px-1 text-sm font-semibold flex items-center space-x-2";
+        libBtn.className = "border-b-2 border-transparent text-slate-400 hover:text-slate-200 pb-3 px-1 text-sm font-semibold flex items-center space-x-2";
+      } else {
+        genTab.classList.add("hidden");
+        libTab.classList.remove("hidden");
+        libBtn.className = "border-b-2 border-brand-500 text-brand-400 pb-3 px-1 text-sm font-semibold flex items-center space-x-2";
+        genBtn.className = "border-b-2 border-transparent text-slate-400 hover:text-slate-200 pb-3 px-1 text-sm font-semibold flex items-center space-x-2";
+        loadLibrary();
+      }
+      lucide.createIcons();
+    }
+
+    function setClips(n) {
+      selectedClips = n;
+      document.querySelectorAll(".clip-btn").forEach(b => {
+        b.className = "clip-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition";
+      });
+      document.getElementById(`btn-clip-${n}`).className = "clip-btn py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white border border-brand-500 transition";
+    }
+
+    function setRatio(r) {
+      selectedRatio = r;
+      document.querySelectorAll(".ratio-btn").forEach(b => {
+        b.className = "ratio-btn py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex items-center justify-center space-x-1";
+      });
+      const targetId = r === '9:16' ? 'btn-ratio-916' : 'btn-ratio-11';
+      document.getElementById(targetId).className = "ratio-btn py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white border border-brand-500 transition flex items-center justify-center space-x-1";
+    }
+
+    async function pasteClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById("video-url").value = text;
+          showToast("Pasted from clipboard", "success");
+        }
+      } catch (err) {
+        showToast("Clipboard access denied", "error");
+      }
+    }
+
+    async function handleGenerate(e) {
+      e.preventDefault();
+      const url = document.getElementById("video-url").value.trim();
+      if (!url) return;
+
+      // Reset UI
+      document.getElementById("submit-btn").disabled = true;
+      document.getElementById("submit-text").textContent = "Processing...";
+      document.getElementById("status-text").textContent = "Generating Shorts...";
+      document.getElementById("progress-card").classList.remove("hidden");
+      document.getElementById("results-card").classList.add("hidden");
+      document.getElementById("log-console").innerHTML = "";
+      updateProgressBar(0, "Submitting job...");
+      resetStepper();
+
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: url,
+            num_clips: selectedClips,
+            aspect_ratio: selectedRatio,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Failed to start generation");
+        }
+
+        const data = await res.json();
+        activeJobId = data.job_id;
+        connectSSE(activeJobId);
+      } catch (err) {
+        showToast(err.message, "error");
+        document.getElementById("submit-btn").disabled = false;
+        document.getElementById("submit-text").textContent = "Generate Viral Shorts";
+        document.getElementById("status-text").textContent = "Engine Ready";
+      }
+    }
+
+    function connectSSE(jobId) {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource(`/api/progress/${jobId}`);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleProgressEvent(data);
+        } catch (err) {
+          console.error("SSE parse error:", err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.warn("SSE connection closed or lost:", err);
+        eventSource.close();
+      };
+    }
+
+    function handleProgressEvent(data) {
+      if (data.type === "snapshot" || data.type === "progress") {
+        updateProgressBar(data.percent || 0, data.message || "");
+        updateStepper(data.step);
+        if (data.log) {
+          appendLog(data.log);
+        }
+      }
+
+      if (data.type === "completed") {
+        updateProgressBar(100, "All shorts completed!");
+        updateStepper("completed");
+        appendLog(`[${new Date().toLocaleTimeString()}] [DONE] ${data.message}`);
+        renderResults(data.result?.shorts || []);
+        finishJobUI();
+        loadLibrary();
+        showToast("All shorts generated successfully!", "success");
+      }
+
+      if (data.type === "failed") {
+        appendLog(`[${new Date().toLocaleTimeString()}] [ERROR] ${data.error}`);
+        finishJobUI();
+        showToast("Error: " + data.error, "error");
+      }
+    }
+
+    function updateProgressBar(pct, msg) {
+      document.getElementById("progress-bar-fill").style.width = `${pct}%`;
+      document.getElementById("progress-percentage-badge").textContent = `${pct}%`;
+      document.getElementById("progress-status-msg").textContent = msg;
+    }
+
+    function resetStepper() {
+      ["download", "transcribe", "analyze", "render", "completed"].forEach(s => {
+        const el = document.getElementById(`step-${s}`);
+        if (!el) return;
+        el.className = "step-card bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition";
+        el.querySelector(".step-icon").className = "step-icon w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400";
+      });
+    }
+
+    function updateStepper(activeStep) {
+      const stepOrder = ["download", "transcribe", "analyze", "render", "completed"];
+      const activeIdx = stepOrder.indexOf(activeStep);
+
+      stepOrder.forEach((s, idx) => {
+        const el = document.getElementById(`step-${s}`);
+        if (!el) return;
+        const iconEl = el.querySelector(".step-icon");
+
+        if (idx < activeIdx) {
+          // Completed
+          el.className = "step-card bg-slate-950/80 border border-emerald-500/40 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 transition";
+          iconEl.className = "step-icon w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center";
+        } else if (idx === activeIdx) {
+          // Active
+          el.className = "step-card bg-brand-950/40 border border-amber-400/50 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 active-glow transition";
+          iconEl.className = "step-icon w-9 h-9 rounded-full bg-amber-400/20 text-amber-400 flex items-center justify-center font-bold";
+        } else {
+          // Pending
+          el.className = "step-card bg-slate-950/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col items-center text-center space-y-2 opacity-60 transition";
+          iconEl.className = "step-icon w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-slate-500";
+        }
+      });
+    }
+
+    function appendLog(line) {
+      const consoleEl = document.getElementById("log-console");
+      const row = document.createElement("div");
+      row.className = "font-mono leading-relaxed";
+      if (line.includes("[ERROR]")) {
+        row.className += " text-red-400 font-semibold";
+      } else if (line.includes("[DONE]")) {
+        row.className += " text-emerald-400 font-semibold";
+      } else if (line.includes("Rendering Short")) {
+        row.className += " text-amber-300";
+      }
+      row.textContent = line;
+      consoleEl.appendChild(row);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById("log-console").innerHTML = "";
+    }
+
+    function finishJobUI() {
+      document.getElementById("submit-btn").disabled = false;
+      document.getElementById("submit-text").textContent = "Generate Viral Shorts";
+      document.getElementById("status-text").textContent = "Engine Ready";
+      if (eventSource) {
+        eventSource.close();
+      }
+    }
+
+    function renderResults(shorts) {
+      const container = document.getElementById("results-grid");
+      container.innerHTML = "";
+      if (!shorts || shorts.length === 0) return;
+
+      document.getElementById("results-card").classList.remove("hidden");
+      document.getElementById("results-count-badge").textContent = `${shorts.length} clips ready`;
+
+      shorts.forEach((s, idx) => {
+        const filename = s.clip_url ? s.clip_url.split(/[/\\]/).pop() : `short_${idx+1}.mp4`;
+        const videoSrc = `/api/video/${filename}`;
+        const downloadUrl = `/api/video/${filename}?download=1`;
+
+        const card = document.createElement("div");
+        card.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-xl";
+        card.innerHTML = `
+          <!-- 9:16 Video Player -->
+          <div class="relative bg-black aspect-[9/16] w-full overflow-hidden flex items-center justify-center group">
+            <video
+              src="${videoSrc}"
+              controls
+              preload="metadata"
+              playsinline
+              class="w-full h-full object-cover"
+            ></video>
+          </div>
+
+          <!-- Metadata & Actions -->
+          <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                  <span>🔥</span>
+                  <span>Score: ${s.score || 85}/100</span>
+                </span>
+                <span class="text-xs text-slate-500 font-mono">${s.start_time?.toFixed(1) || 0}s → ${s.end_time?.toFixed(1) || 0}s</span>
+              </div>
+              <h3 class="font-bold text-white text-base leading-snug">${s.title || 'Untitled Highlight'}</h3>
+              ${s.hook_sentence ? `<p class="text-xs text-slate-300 italic bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">"${s.hook_sentence}"</p>` : ''}
+              ${s.virality_reason ? `<p class="text-[11px] text-slate-400">${s.virality_reason}</p>` : ''}
+            </div>
+
+            <div class="pt-2 flex items-center space-x-2">
+              <a
+                href="${downloadUrl}"
+                class="flex-1 py-2.5 px-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition shadow-md shadow-brand-600/20"
+              >
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                <span>Download MP4</span>
+              </a>
+              <button
+                type="button"
+                onclick="copyVideoLink('${window.location.origin}${videoSrc}')"
+                class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                title="Copy Stream Link"
+              >
+                <i data-lucide="share-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    async function loadLibrary() {
+      try {
+        const res = await fetch("/api/shorts");
+        if (!res.ok) return;
+        const list = await res.json();
+
+        document.getElementById("library-count").textContent = list.length;
+        const container = document.getElementById("library-grid");
+        const emptyEl = document.getElementById("library-empty");
+        container.innerHTML = "";
+
+        if (list.length === 0) {
+          emptyEl.classList.remove("hidden");
+          return;
+        }
+        emptyEl.classList.add("hidden");
+
+        list.forEach((s) => {
+          const card = document.createElement("div");
+          card.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-xl";
+          card.innerHTML = `
+            <div class="relative bg-black aspect-[9/16] w-full overflow-hidden flex items-center justify-center">
+              <video
+                src="${s.video_url}"
+                controls
+                preload="none"
+                playsinline
+                class="w-full h-full object-cover"
+              ></video>
+            </div>
+            <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                    <span>🔥</span>
+                    <span>Score: ${s.score}/100</span>
+                  </span>
+                  <span class="text-xs text-slate-400 font-mono">${s.file_size_human}</span>
+                </div>
+                <h3 class="font-bold text-white text-base leading-snug">${s.title}</h3>
+                ${s.hook ? `<p class="text-xs text-slate-300 italic bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">"${s.hook}"</p>` : ''}
+              </div>
+              <div class="pt-2 flex items-center space-x-2">
+                <a
+                  href="${s.download_url}"
+                  class="flex-1 py-2.5 px-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition shadow-md shadow-brand-600/20"
+                >
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span>Download MP4</span>
+                </a>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Failed to load library:", err);
+      }
+    }
+
+    function copyVideoLink(link) {
+      navigator.clipboard.writeText(link);
+      showToast("Link copied to clipboard!", "success");
+    }
+
+    function showToast(msg, type = "success") {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toast-msg");
+      const toastIcon = document.getElementById("toast-icon");
+
+      toastMsg.textContent = msg;
+      if (type === "error") {
+        toastIcon.innerHTML = `<i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>`;
+      } else {
+        toastIcon.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>`;
+      }
+      lucide.createIcons();
+
+      toast.classList.remove("opacity-0", "pointer-events-none", "translate-y-2");
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "pointer-events-none", "translate-y-2");
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

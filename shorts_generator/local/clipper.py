@@ -10,7 +10,7 @@ import gc
 import os
 import subprocess
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -278,6 +278,7 @@ def crop_highlights_local(
     aspect_ratio: str = "9:16",
     out_dir: Optional[str] = None,
     transcript: Optional[Dict] = None,
+    on_progress: Optional[Any] = None,
 ) -> List[Dict]:
     out_dir = out_dir or LOCAL_OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -295,7 +296,13 @@ def crop_highlights_local(
     results: List[Dict] = []
     for i, h in enumerate(highlights, 1):
         out_path = os.path.join(out_dir, f"short_{i:02d}.mp4")
-        print(f"[clip/local] {i}/{len(highlights)}: {h.get('title', '(untitled)')}", flush=True)
+        title = h.get('title', f'Clip {i}')
+        print(f"[clip/local] {i}/{len(highlights)}: {title}", flush=True)
+        if on_progress:
+            try:
+                on_progress(i, len(highlights), title)
+            except Exception:
+                pass
         try:
             crop_clip_local(
                 source_path,

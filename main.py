@@ -20,12 +20,14 @@ from shorts_generator import generate_shorts
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="AI YouTube Shorts Generator")
-    parser.add_argument("url", help="YouTube URL, file:// URL, or local file path")
+    parser.add_argument("url", nargs="?", default=None, help="YouTube URL, file:// URL, or local file path")
+    parser.add_argument("--web", action="store_true", help="Launch interactive web dashboard at http://localhost:8000")
+    parser.add_argument("--port", type=int, default=8000, help="Web dashboard port (default: 8000)")
     parser.add_argument(
         "--mode",
         choices=["api", "local"],
-        default="api",
-        help="api (default, MuAPI) or local (remote URL, file://, or local path + faster-whisper + LLM provider + ffmpeg).",
+        default="local",
+        help="api (MuAPI) or local (default: faster-whisper + Gemini/OpenAI + ffmpeg).",
     )
     parser.add_argument("--num-clips", type=int, default=3, help="How many shorts to render (default: 3)")
     parser.add_argument("--aspect-ratio", default="9:16", help="Output aspect ratio (default: 9:16)")
@@ -33,6 +35,14 @@ def main() -> int:
     parser.add_argument("--language", default=None, help="Force Whisper language code, e.g. 'en' (default: auto-detect)")
     parser.add_argument("--output-json", default=None, help="Write the full result JSON to this path")
     args = parser.parse_args()
+
+    if args.web:
+        from app import start_server
+        start_server(port=args.port, open_browser=True)
+        return 0
+
+    if not args.url:
+        parser.error("URL is required when not using --web. Example: python main.py <url> or python main.py --web")
 
     try:
         result = generate_shorts(
