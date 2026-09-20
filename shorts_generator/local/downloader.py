@@ -110,7 +110,7 @@ def download_youtube_local(video_url: str, fmt: str = "720", out_dir: Optional[s
             print(f"[download/local] reusing cached download: {cached}", flush=True)
             return cached
 
-    print(f"[download/local] {video_url} @ {fmt}p → {out_dir}/", flush=True)
+    print(f"[download/local] {video_url} @ {fmt}p -> {out_dir}/", flush=True)
     ydl_opts = {
         "format": _format_for(fmt),
         "outtmpl": os.path.join(out_dir, "source_%(id)s.%(ext)s"),
