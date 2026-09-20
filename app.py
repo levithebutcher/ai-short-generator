@@ -65,6 +65,7 @@ class GenerateRequest(BaseModel):
     aspect_ratio: str = "9:16"
     download_format: str = "720"
     language: Optional[str] = None
+    caption_style: str = "hormozi"
 
 
 def _broadcast_event(job_id: str, event_data: Dict[str, Any]) -> None:
@@ -110,7 +111,7 @@ def _run_job_worker(job_id: str, req: GenerateRequest, loop: asyncio.AbstractEve
         _safe_broadcast(payload)
 
     try:
-        progress_callback("start", 5, f"Starting generation for: {req.url}")
+        progress_callback("start", 5, f"Starting generation for: {req.url} (style: {req.caption_style})")
         result = generate_shorts(
             req.url,
             num_clips=req.num_clips,
@@ -119,6 +120,7 @@ def _run_job_worker(job_id: str, req: GenerateRequest, loop: asyncio.AbstractEve
             language=req.language,
             mode="local",
             progress_callback=progress_callback,
+            caption_style=req.caption_style,
         )
         job["status"] = "completed"
         job["percent"] = 100
@@ -169,6 +171,13 @@ async def get_config():
     }
 
 
+@app.get("/api/caption-styles")
+async def get_caption_styles():
+    """Return list of available caption style presets inspired by nicolaigaina/ai-video-captions."""
+    from shorts_generator.local.caption_generator import list_caption_styles
+    return {"styles": list_caption_styles()}
+
+
 @app.get("/api/active-job")
 async def get_active_job():
     """Return the currently running or most recent job for page refresh recovery."""
@@ -196,11 +205,12 @@ async def start_generation(req: GenerateRequest):
     jobs[job_id] = {
         "id": job_id,
         "url": req.url.strip(),
+        "caption_style": req.caption_style,
         "status": "queued",
         "step": "queued",
         "percent": 0,
         "message": "Queued in worker...",
-        "logs": [f"[{time.strftime('%H:%M:%S')}] Job created: {req.url}"],
+        "logs": [f"[{time.strftime('%H:%M:%S')}] Job created: {req.url} (style: {req.caption_style})"],
         "result": None,
         "error": None,
         "created_at": time.time(),

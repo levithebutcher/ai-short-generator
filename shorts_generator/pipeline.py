@@ -21,6 +21,7 @@ def _run_local(
     download_format: str,
     language: Optional[str],
     progress_callback: Optional[Any] = None,
+    caption_style: str = "hormozi",
 ) -> Dict:
     from .local.clipper import crop_highlights_local
     from .local.downloader import download_youtube_local
@@ -70,7 +71,7 @@ def _run_local(
 
     top = sorted(all_highlights, key=lambda h: int(h.get("score", 0)), reverse=True)[:num_clips]
     _report("analyze", 65, f"Selected top {len(top)} viral highlights")
-    print(f"[pipeline/local] cropping {len(top)} of {len(all_highlights)} candidates", flush=True)
+    print(f"[pipeline/local] cropping {len(top)} of {len(all_highlights)} candidates (style: {caption_style})", flush=True)
 
     def _on_render_clip(current: int, total: int, title: str):
         pct = 65 + int(((current - 1) / max(1, total)) * 30)
@@ -82,6 +83,7 @@ def _run_local(
         aspect_ratio=aspect_ratio,
         transcript=transcript,
         on_progress=_on_render_clip,
+        caption_style=caption_style,
     )
 
     result = {
@@ -137,6 +139,7 @@ def generate_shorts(
     language: Optional[str] = None,
     mode: str = "api",
     progress_callback: Optional[Any] = None,
+    caption_style: str = "hormozi",
 ) -> Dict:
     """Run the full pipeline and return a structured result.
 
@@ -149,6 +152,7 @@ def generate_shorts(
         mode: "api" (default, MuAPI) or "local" (yt-dlp + faster-whisper +
             OpenAI or Gemini + ffmpeg).
         progress_callback: Optional callback fn(step, percent, message, data).
+        caption_style: One of 'hormozi', 'mrbeast', 'bounce', 'karaoke', 'minimal', 'classic'.
 
     Returns:
         {
@@ -168,6 +172,7 @@ def generate_shorts(
             download_format,
             language,
             progress_callback=progress_callback,
+            caption_style=caption_style,
         )
     if mode == "api":
         return _run_api(youtube_url, num_clips, aspect_ratio, download_format, language)

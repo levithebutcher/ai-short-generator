@@ -243,6 +243,7 @@ def crop_clip_local(
     aspect_ratio: str,
     out_path: str,
     transcript: Optional[Dict] = None,
+    caption_style: str = "hormozi",
 ) -> str:
     """Cut + reframe one highlight with burned captions, returning the local mp4 path."""
     cut_path = out_path + ".cut.mp4"
@@ -255,6 +256,7 @@ def crop_clip_local(
             end_time,
             sub_path,
             aspect_ratio=aspect_ratio,
+            caption_style=caption_style,
         )
 
     try:
@@ -279,6 +281,7 @@ def crop_highlights_local(
     out_dir: Optional[str] = None,
     transcript: Optional[Dict] = None,
     on_progress: Optional[Any] = None,
+    caption_style: str = "hormozi",
 ) -> List[Dict]:
     out_dir = out_dir or LOCAL_OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -311,6 +314,7 @@ def crop_highlights_local(
                 aspect_ratio,
                 out_path,
                 transcript=transcript,
+                caption_style=caption_style,
             )
             results.append({**h, "clip_url": out_path})
         except Exception as e:
